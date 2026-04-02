@@ -3,33 +3,34 @@ import pyttsx3
 import os
 import webbrowser
 import time
+import smtplib
+import subprocess
+import psutil
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from reportlab.pdfgen import canvas
 
 
-# --------------------------------------------------
-# GLOBAL SPEECH ENGINE (NO RUN LOOP ERROR)
-# --------------------------------------------------
+# -------------------------------------------------------------
+# GLOBAL SPEECH ENGINE
+# -------------------------------------------------------------
 engine = pyttsx3.init("sapi5")
 engine.setProperty("rate", 170)
 engine.setProperty("volume", 1.0)
 
-
 def speak(text):
-    """Text to Speech"""
     print("Jarvis:", text)
     engine.say(text)
     engine.runAndWait()
 
 
-# --------------------------------------------------
-# VOICE LISTENER
-# --------------------------------------------------
+# -------------------------------------------------------------
+# LISTEN FUNCTION
+# -------------------------------------------------------------
 def listen():
-    """Convert speech to text"""
     r = sr.Recognizer()
     with sr.Microphone() as source:
-        print("🎙 Listening...")
-        speak("Listening...")
+        speak("Listening")
         r.pause_threshold = 1
         audio = r.listen(source)
 
@@ -39,28 +40,103 @@ def listen():
         return cmd.lower()
 
     except:
-        speak("Sorry, can you repeat that?")
+        speak("I didn't understand. Please say again.")
         return ""
 
 
-# --------------------------------------------------
-# CREATE PDF
-# --------------------------------------------------
-def create_pdf():
+# -------------------------------------------------------------
+# PDF CREATION
+# -------------------------------------------------------------
+def create_pdf(name="Jarvis_Output.pdf"):
     speak("Creating PDF")
-    c = canvas.Canvas("Jarvis_Output.pdf")
-    c.drawString(100, 750, "PDF created by Jarvis AI")
-    c.drawString(100, 720, "Your personal voice assistant")
+    c = canvas.Canvas(name)
+    c.drawString(100, 750, "PDF Created by Jarvis AI")
+    c.drawString(100, 720, "Your advanced personal assistant.")
     c.save()
     speak("PDF created successfully")
 
 
-# --------------------------------------------------
-# MAIN COMMAND HANDLER
-# --------------------------------------------------
+# -------------------------------------------------------------
+# SEND EMAIL
+# -------------------------------------------------------------
+def send_email(to, subject, message):
+
+    user_email = "your_email@gmail.com"
+    user_password = "your_password"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = user_email
+        msg["To"] = to
+        msg["Subject"] = subject
+
+        msg.attach(MIMEText(message, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(user_email, user_password)
+        server.sendmail(user_email, to, msg.as_string())
+        server.quit()
+
+        speak("Email sent successfully")
+    except Exception as e:
+        speak("Error sending email")
+        print(e)
+
+
+# -------------------------------------------------------------
+# PLAY MUSIC
+# -------------------------------------------------------------
+def play_music():
+    music_path = "C:\\Users\\Public\\Music"
+    files = os.listdir(music_path)
+    if files:
+        os.startfile(os.path.join(music_path, files[0]))
+        speak("Playing music")
+    else:
+        speak("No music found")
+
+
+# -------------------------------------------------------------
+# SYSTEM CONTROLS
+# -------------------------------------------------------------
+def shutdown_system():
+    speak("Shutting down the system")
+    os.system("shutdown /s /t 1")
+
+def restart_system():
+    speak("Restarting system")
+    os.system("shutdown /r /t 1")
+
+def battery_status():
+    battery = psutil.sensors_battery()
+    if battery:
+        percent = battery.percent
+        speak(f"Battery level is {percent} percent")
+    else:
+        speak("Battery information not available")
+
+def open_application(app_name):
+    paths = {
+        "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "vscode": r"C:\Users\%USERNAME%\AppData\Local\Programs\Microsoft VS Code\Code.exe",
+        "notepad": "notepad",
+        "calculator": "calc"
+    }
+
+    if app_name in paths:
+        speak(f"Opening {app_name}")
+        os.system(paths[app_name])
+    else:
+        speak(f"I cannot find {app_name} on this device")
+
+
+# -------------------------------------------------------------
+# MAIN COMMAND PROCESSOR
+# -------------------------------------------------------------
 def run_command(command):
 
-    # Web
+    # BASIC FUNCTIONS
     if "open youtube" in command:
         speak("Opening YouTube")
         webbrowser.open("https://youtube.com")
@@ -73,8 +149,24 @@ def run_command(command):
         speak("Opening WhatsApp Web")
         webbrowser.open("https://web.whatsapp.com")
 
-    # Apps
-    elif "open notepad" in command:
+    elif "play music" in command:
+        play_music()
+
+    elif "make pdf" in command:
+        create_pdf()
+
+    # SYSTEM CONTROL
+    elif "shutdown" in command:
+        shutdown_system()
+
+    elif "restart" in command:
+        restart_system()
+
+    elif "battery" in command:
+        battery_status()
+
+    # APPLICATIONS
+    elif "open notepad" in command or "notepad" in command:
         speak("Opening Notepad")
         os.system("notepad")
 
@@ -82,45 +174,44 @@ def run_command(command):
         speak("Opening Calculator")
         os.system("calc")
 
-    elif "open file explorer" in command or "open file manager" in command:
-        speak("Opening File Explorer")
-        os.system("explorer")
+    elif "open chrome" in command:
+        open_application("chrome")
 
-    elif "open command prompt" in command:
-        speak("Opening Command Prompt")
-        os.system("start cmd")
+    elif "open vs code" in command:
+        open_application("vscode")
 
-    elif "open settings" in command:
-        speak("Opening Windows Settings")
-        os.system("start ms-settings:")
+    # EMAIL
+    elif "send email" in command:
+        speak("Whom should I send to?")
+        to = input("Enter email: ")
+        speak("Subject?")
+        subject = input("Enter subject: ")
+        speak("Message?")
+        message = input("Enter message: ")
+        send_email(to, subject, message)
 
-    # PDF
-    elif "make pdf" in command or "create pdf" in command:
-        create_pdf()
-
-    # Exit
-    elif "stop jarvis" in command or "quit" in command:
+    # EXIT
+    elif "stop jarvis" in command or "exit" in command:
         speak("Goodbye Rohit. Jarvis shutting down.")
         exit()
 
     else:
-        speak("Sorry Rohit, I did not understand that command.")
+        speak("Sorry, I did not understand that.")
 
 
-# --------------------------------------------------
-# MAIN PROGRAM LOOP
-# --------------------------------------------------
+# -------------------------------------------------------------
+# MAIN LOOP
+# -------------------------------------------------------------
 if __name__ == "__main__":
-    speak("Jarvis Activated. How can I help you?")
+    speak("Advanced Jarvis Activated. How can I help you?")
 
     while True:
-        print("\n----------------------")
+        print("\n--- Choose Input Mode ---")
         print("1. Speak")
         print("2. Type")
         print("3. Exit")
-        print("----------------------")
 
-        mode = input("Choose input method: ").strip()
+        mode = input("Select: ")
 
         if mode == "1":
             command = listen()
@@ -128,7 +219,7 @@ if __name__ == "__main__":
                 run_command(command)
 
         elif mode == "2":
-            command = input("Type command: ").lower()
+            command = input("Type your command: ").lower()
             run_command(command)
 
         elif mode == "3":
@@ -136,4 +227,4 @@ if __name__ == "__main__":
             break
 
         else:
-            print("Invalid choice!")
+            speak("Invalid choice")
